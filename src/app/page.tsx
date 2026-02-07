@@ -8,17 +8,27 @@ import { PadState, DEFAULT_PAD_COLOR } from "@/types/dj-pad";
 import { audioEngine } from "@/lib/audio-engine";
 import { Volume2, Music, Power } from 'lucide-react';
 
-const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => ({
-  id: i,
-  label: `${i + 1}`,
-  color: DEFAULT_PAD_COLOR,
-  pitch: 1.0,
-  bass: 0,
-  loop: false,
-  volume: 0.8,
-  sampleUrl: `/sounds/sample${(i % 5) + 1}.mp3`, // Cycling through 5 placeholders
-  isActive: false,
-}));
+const SOUND_MAPPING = [
+  { label: 'Cepagaria', url: '/sounds/cepagaria.mp3' },
+  { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
+  { label: 'Fahh', url: '/sounds/fahh.mp3' },
+  { label: 'Tailung', url: '/sounds/tailung.mp3' },
+];
+
+const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => {
+  const customSound = SOUND_MAPPING[i];
+  return {
+    id: i,
+    label: customSound ? customSound.label : `${i + 1}`,
+    color: customSound ? '#9C27B0' : DEFAULT_PAD_COLOR, // Distinct color for active pads
+    pitch: 1.0,
+    bass: 0,
+    loop: false,
+    volume: 0.8,
+    sampleUrl: customSound ? customSound.url : `/sounds/sample${(i % 5) + 1}.mp3`,
+    isActive: false,
+  };
+});
 
 export default function DJPadController() {
   const [pads, setPads] = useState<PadState[]>(INITIAL_PADS);
@@ -27,6 +37,15 @@ export default function DJPadController() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   const selectedPad = selectedPadId !== null ? pads[selectedPadId] : null;
+
+  // Pre-load all samples on mount
+  useEffect(() => {
+    if (audioEngine) {
+      pads.forEach(pad => {
+        audioEngine.loadSample(pad.id, pad.sampleUrl);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (audioEngine) {
@@ -137,7 +156,7 @@ export default function DJPadController() {
 
       {/* Footer Instructions */}
       <footer className="text-center text-xs text-muted-foreground pt-4 opacity-50">
-        <p>Built for performance. Low latency Web Audio API. Add custom MP3 samples to <code>/public/sounds/</code>.</p>
+        <p>Built for performance. Low latency Web Audio API. Custom sounds linked to pads 1-4.</p>
       </footer>
     </div>
   );
