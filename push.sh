@@ -1,0 +1,1 @@
+git add . && git commit -m "Fix: next build output and config" && git push origin main
