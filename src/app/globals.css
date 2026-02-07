@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 19%;
+    --background: 0 0% 10%;
     --foreground: 0 0% 98%;
     --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
@@ -12,18 +12,18 @@
     --popover-foreground: 0 0% 98%;
     --primary: 261 51% 47%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 25%;
+    --secondary: 0 0% 20%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 25%;
+    --muted: 0 0% 20%;
     --muted-foreground: 0 0% 70%;
     --accent: 90 100% 49%;
     --accent-foreground: 0 0% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 30%;
-    --input: 0 0% 30%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
     --ring: 261 51% 47%;
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
 }
 
@@ -32,13 +32,15 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased selection:bg-accent/30;
+    @apply bg-background text-foreground font-body antialiased selection:bg-accent/30 overflow-x-hidden;
+    touch-action: manipulation;
   }
 }
 
 .pad-active {
-  box-shadow: 0 0 20px 2px hsl(var(--accent) / 0.5);
-  transform: scale(0.95);
+  box-shadow: 0 0 15px 1px hsl(var(--accent) / 0.4);
+  transform: scale(0.96);
+  filter: brightness(1.2);
 }
 
 .pad-loop-active {
@@ -46,11 +48,19 @@
 }
 
 @keyframes pulse-accent {
-  0% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
-  100% { opacity: 0.6; transform: scale(1); }
+  0% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.5; transform: scale(1); }
 }
 
 .loop-indicator {
-  animation: pulse-accent 2s infinite ease-in-out;
+  animation: pulse-accent 1.5s infinite ease-in-out;
+}
+
+/* Prevent zoom on input focus for iOS */
+@media screen and (max-width: 768px) {
+  input[type="text"], 
+  input[type="number"] {
+    font-size: 16px !important;
+  }
 }

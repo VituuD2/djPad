@@ -17,42 +17,42 @@ interface ControlPanelProps {
 export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => {
   if (!pad) {
     return (
-      <Card className="h-full border-dashed bg-card/20 flex flex-col items-center justify-center p-8 text-center">
-        <Info className="text-muted-foreground mb-4 opacity-20" size={48} />
-        <CardTitle className="text-muted-foreground">No Pad Selected</CardTitle>
-        <CardDescription>Select a pad from the grid to customize its sound and behavior.</CardDescription>
+      <Card className="h-full border-dashed bg-card/20 flex flex-col items-center justify-center p-6 md:p-8 text-center min-h-[200px]">
+        <Info className="text-muted-foreground mb-4 opacity-20" size={32} />
+        <CardTitle className="text-sm md:text-base text-muted-foreground">No Pad Selected</CardTitle>
+        <CardDescription className="text-xs">Select a pad to customize behavior.</CardDescription>
       </Card>
     );
   }
 
   return (
-    <Card className="h-full border-border bg-card/40 backdrop-blur-sm overflow-auto">
-      <CardHeader className="border-b border-border/50 pb-4">
+    <Card className="h-full border-border bg-card/40 backdrop-blur-sm">
+      <CardHeader className="border-b border-border/50 pb-3 md:pb-4 p-4 md:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-base md:text-lg flex items-center gap-2">
               Pad {pad.id + 1}
               <div 
-                className="w-3 h-3 rounded-full" 
+                className="w-2.5 h-2.5 rounded-full" 
                 style={{ backgroundColor: pad.color }} 
               />
             </CardTitle>
-            <CardDescription>Configure sample settings</CardDescription>
+            <CardDescription className="text-xs">Configure behavior</CardDescription>
           </div>
-          <div className="bg-secondary p-2 rounded-lg">
-             <SlidersHorizontal size={18} className="text-primary" />
+          <div className="bg-secondary p-1.5 md:p-2 rounded-lg">
+             <SlidersHorizontal size={16} className="text-primary" />
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-8 pt-6">
+      <CardContent className="space-y-6 md:space-y-8 p-4 md:p-6">
         {/* Loop Toggle */}
-        <div className="flex items-center justify-between bg-secondary/50 p-4 rounded-xl border border-border/50">
+        <div className="flex items-center justify-between bg-secondary/50 p-3 md:p-4 rounded-xl border border-border/50">
           <div className="space-y-0.5">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <Repeat size={16} /> Loop Sample
+            <Label className="text-sm md:text-base font-semibold flex items-center gap-2">
+              <Repeat size={14} /> Loop
             </Label>
-            <span className="text-xs text-muted-foreground">Repeat sound continuously</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground">Continuous play</span>
           </div>
           <Switch 
             checked={pad.loop} 
@@ -61,10 +61,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
         </div>
 
         {/* Pitch Slider */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-sm font-medium">Pitch / Speed</Label>
-            <span className="text-xs font-mono bg-primary/20 text-primary px-2 py-0.5 rounded">
+            <Label className="text-xs md:text-sm font-medium">Pitch / Speed</Label>
+            <span className="text-[10px] md:text-xs font-mono bg-primary/20 text-primary px-2 py-0.5 rounded">
               {pad.pitch.toFixed(2)}x
             </span>
           </div>
@@ -75,7 +75,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
             step={1} 
             onValueChange={([val]) => onUpdate({ pitch: val / 100 })}
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
+          <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider">
             <span>Half</span>
             <span>Normal</span>
             <span>Double</span>
@@ -83,10 +83,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
         </div>
 
         {/* Bass Slider */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-sm font-medium">Bass Boost (Low Shelf)</Label>
-            <span className="text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded">
+            <Label className="text-xs md:text-sm font-medium">Bass Boost</Label>
+            <span className="text-[10px] md:text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded">
               {pad.bass > 0 ? `+${pad.bass}` : pad.bass} dB
             </span>
           </div>
@@ -97,18 +97,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
             step={1} 
             onValueChange={([val]) => onUpdate({ bass: val })}
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
-            <span>Cut</span>
-            <span>Flat</span>
-            <span>Boost</span>
-          </div>
         </div>
 
         {/* Individual Volume Slider */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-sm font-medium">Pad Volume</Label>
-            <span className="text-xs font-mono text-muted-foreground">
+            <Label className="text-xs md:text-sm font-medium">Pad Volume</Label>
+            <span className="text-[10px] md:text-xs font-mono text-muted-foreground">
               {Math.round(pad.volume * 100)}%
             </span>
           </div>
@@ -122,25 +117,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
         </div>
 
         {/* Color Picker */}
-        <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-border/50">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Palette size={16} /> Pad Color
+            <Label className="text-xs md:text-sm font-medium flex items-center gap-2">
+              <Palette size={14} /> Pad Color
             </Label>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-3 items-center">
             <Input 
               type="color" 
               value={pad.color} 
               onChange={(e) => onUpdate({ color: e.target.value })}
-              className="w-12 h-12 p-1 bg-transparent border-none cursor-pointer"
+              className="w-10 h-10 md:w-12 md:h-12 p-1 bg-transparent border-none cursor-pointer"
             />
             <div className="flex-1">
               <Input 
                 type="text" 
                 value={pad.color} 
                 onChange={(e) => onUpdate({ color: e.target.value })}
-                className="font-mono uppercase h-10"
+                className="font-mono uppercase h-8 md:h-10 text-xs md:text-sm"
               />
             </div>
           </div>

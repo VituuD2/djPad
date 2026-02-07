@@ -20,7 +20,7 @@ const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => {
   return {
     id: i,
     label: customSound ? customSound.label : `${i + 1}`,
-    color: customSound ? '#9C27B0' : DEFAULT_PAD_COLOR, // Distinct color for active pads
+    color: customSound ? '#9C27B0' : DEFAULT_PAD_COLOR,
     pitch: 1.0,
     bass: 0,
     loop: false,
@@ -38,7 +38,6 @@ export default function DJPadController() {
 
   const selectedPad = selectedPadId !== null ? pads[selectedPadId] : null;
 
-  // Pre-load all samples on mount
   useEffect(() => {
     if (audioEngine) {
       pads.forEach(pad => {
@@ -68,7 +67,6 @@ export default function DJPadController() {
       volume: pad.volume,
     });
 
-    // Reset visual active state after brief delay unless looping
     if (!pad.loop) {
       setTimeout(() => {
         setPads(prev => prev.map(p => 
@@ -100,21 +98,21 @@ export default function DJPadController() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col min-h-screen p-3 sm:p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 md:pb-6">
         <div className="flex items-center gap-3">
-          <div className="bg-primary p-2 rounded-xl">
-            <Music className="text-white h-6 w-6" />
+          <div className="bg-primary p-2 rounded-xl shrink-0">
+            <Music className="text-white h-5 w-5 md:h-6 md:w-6" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             DJ Pad Controller
           </h1>
         </div>
 
-        <div className="flex items-center gap-6 bg-card/50 p-3 rounded-2xl border border-border shadow-inner min-w-[300px]">
-          <Volume2 className="text-muted-foreground shrink-0" size={20} />
-          <div className="flex-1 px-2">
+        <div className="flex items-center gap-4 bg-card/50 p-2 md:p-3 rounded-2xl border border-border shadow-inner w-full md:w-auto md:min-w-[300px]">
+          <Volume2 className="text-muted-foreground shrink-0" size={18} />
+          <div className="flex-1 px-1">
             <Slider 
               value={[masterVolume * 100]} 
               max={100} 
@@ -122,14 +120,14 @@ export default function DJPadController() {
               onValueChange={([val]) => setMasterVolume(val / 100)}
             />
           </div>
-          <span className="text-sm font-mono text-muted-foreground w-8">{Math.round(masterVolume * 100)}%</span>
+          <span className="text-xs font-mono text-muted-foreground w-8">{Math.round(masterVolume * 100)}%</span>
         </div>
       </header>
 
       {/* Main Layout */}
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
+      <main className="flex flex-col lg:grid lg:grid-cols-12 gap-6 md:gap-8 flex-1">
         {/* Grid Area */}
-        <section className="lg:col-span-7 xl:col-span-8 flex flex-col items-center justify-center">
+        <section className="lg:col-span-7 xl:col-span-8 flex flex-col items-center justify-start lg:justify-center min-h-[400px]">
           <PadGrid 
             pads={pads} 
             selectedPadId={selectedPadId}
@@ -138,15 +136,15 @@ export default function DJPadController() {
             onPadSelect={setSelectedPadId}
           />
           {!isInitialized && (
-            <div className="mt-8 flex items-center gap-2 text-accent animate-bounce">
-              <Power size={18} />
-              <p className="text-sm font-medium">Click any pad to start audio engine</p>
+            <div className="mt-6 flex items-center gap-2 text-accent animate-pulse">
+              <Power size={16} />
+              <p className="text-xs md:text-sm font-medium">Touch any pad to start engine</p>
             </div>
           )}
         </section>
 
         {/* Control Panel Area */}
-        <aside className="lg:col-span-5 xl:col-span-4 h-full">
+        <aside className="lg:col-span-5 xl:col-span-4 h-full pb-8">
           <ControlPanel 
             pad={selectedPad} 
             onUpdate={(updates) => selectedPadId !== null && updatePadSettings(selectedPadId, updates)}
@@ -155,8 +153,8 @@ export default function DJPadController() {
       </main>
 
       {/* Footer Instructions */}
-      <footer className="text-center text-xs text-muted-foreground pt-4 opacity-50">
-        <p>Built for performance. Low latency Web Audio API. Custom sounds linked to pads 1-4.</p>
+      <footer className="hidden sm:block text-center text-[10px] text-muted-foreground pt-2 opacity-50">
+        <p>Pro Engine • Low Latency • Custom Samples 1-4</p>
       </footer>
     </div>
   );

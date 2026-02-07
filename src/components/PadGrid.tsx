@@ -21,7 +21,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
   onPadSelect 
 }) => {
   return (
-    <div className="grid grid-cols-5 gap-3 md:gap-4 w-full max-w-3xl aspect-square">
+    <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4 w-full max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl aspect-square">
       {pads.map((pad) => (
         <button
           key={pad.id}
@@ -35,30 +35,32 @@ export const PadGrid: React.FC<PadGridProps> = ({
             onPadPress(pad.id);
           }}
           className={cn(
-            "relative flex flex-col items-center justify-center rounded-xl transition-all duration-75 select-none touch-none",
-            "border-b-4 active:translate-y-[2px] active:border-b-0",
+            "relative flex flex-col items-center justify-center rounded-lg sm:rounded-xl transition-all duration-75 select-none touch-none",
+            "border-b-2 sm:border-b-4 active:translate-y-[2px] active:border-b-0",
             pad.isActive ? "pad-active scale-[0.98]" : "hover:brightness-110",
-            selectedPadId === pad.id ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : "shadow-lg"
+            selectedPadId === pad.id ? "ring-2 ring-accent ring-offset-2 ring-offset-background z-10" : "shadow-md sm:shadow-lg"
           )}
           style={{ 
             backgroundColor: pad.color,
-            borderColor: `color-mix(in srgb, ${pad.color}, black 20%)`,
+            borderColor: `color-mix(in srgb, ${pad.color}, black 30%)`,
             color: 'white',
           }}
         >
-          <span className="text-xs md:text-sm font-bold opacity-80">{pad.label}</span>
+          <span className="text-[10px] sm:text-xs md:text-sm font-bold opacity-80 pointer-events-none truncate px-1 max-w-full">
+            {pad.label}
+          </span>
           
           {pad.loop && (
             <div className={cn(
-              "absolute top-2 right-2 transition-opacity",
+              "absolute top-1 right-1 sm:top-2 sm:right-2 transition-opacity pointer-events-none",
               pad.isActive ? "opacity-100" : "opacity-40"
             )}>
-              <Repeat size={14} className={pad.isActive ? "loop-indicator" : ""} />
+              <Repeat size={10} className={cn("sm:w-3 sm:h-3", pad.isActive ? "loop-indicator" : "")} />
             </div>
           )}
 
           {pad.isActive && (
-            <div className="absolute inset-0 bg-white/20 rounded-xl animate-pulse" />
+            <div className="absolute inset-0 bg-white/20 rounded-lg sm:rounded-xl animate-pulse pointer-events-none" />
           )}
         </button>
       ))}
