@@ -7,14 +7,16 @@ import { Slider } from "@/components/ui/layout/SliderControl";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Repeat, SlidersHorizontal, Palette, Info } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Repeat, SlidersHorizontal, Palette, Info, Square } from 'lucide-react';
 
 interface ControlPanelProps {
   pad: PadState | null;
   onUpdate: (updates: Partial<PadState>) => void;
+  onStop: () => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate, onStop }) => {
   if (!pad) {
     return (
       <Card className="h-full border-dashed bg-card/20 flex flex-col items-center justify-center p-6 md:p-8 text-center min-h-[200px]">
@@ -39,8 +41,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ pad, onUpdate }) => 
             </CardTitle>
             <CardDescription className="text-xs">Configure behavior</CardDescription>
           </div>
-          <div className="bg-secondary p-1.5 md:p-2 rounded-lg">
-             <SlidersHorizontal size={16} className="text-primary" />
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10"
+              onClick={onStop}
+              disabled={!pad.isActive}
+            >
+              <Square size={14} fill="currentColor" />
+            </Button>
+            <div className="bg-secondary p-1.5 md:p-2 rounded-lg">
+               <SlidersHorizontal size={16} className="text-primary" />
+            </div>
           </div>
         </div>
       </CardHeader>

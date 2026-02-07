@@ -6,13 +6,15 @@ import { PadGrid } from "@/components/PadGrid";
 import { ControlPanel } from "@/components/ControlPanel";
 import { PadState, DEFAULT_PAD_COLOR } from "@/types/dj-pad";
 import { audioEngine } from "@/lib/audio-engine";
-import { Volume2, Music, Power } from 'lucide-react';
+import { Volume2, Music, Power, Square } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 const SOUND_MAPPING = [
   { label: 'Cepagaria', url: '/sounds/cepagaria.mp3' },
   { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
   { label: 'Fahh', url: '/sounds/fahh.mp3' },
   { label: 'Tailung', url: '/sounds/tailung.mp3' },
+  { label: 'seeMeFall', url: '/sounds/seeMeFall.mp3' }
 ];
 
 const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => {
@@ -54,14 +56,31 @@ export default function DJPadController() {
     }
   }, [masterVolume]);
 
+  const handlePadStop = useCallback((id: number) => {
+    const engine = audioEngine;
+    if (engine) {
+      engine.stopPad(id);
+    }
+    setPads(prev => prev.map(p => 
+      p.id === id ? { ...p, isActive: false } : p
+    ));
+  }, []);
+
   const handlePadPress = useCallback((id: number) => {
     if (!isInitialized) setIsInitialized(true);
     
+    const pad = pads[id];
+    
+    // Toggle logic: If already active, stop it
+    if (pad.isActive) {
+      handlePadStop(id);
+      return;
+    }
+
     setPads(prev => prev.map(p => 
       p.id === id ? { ...p, isActive: true } : p
     ));
 
-    const pad = pads[id];
     const engine = audioEngine;
     if (engine) {
       engine.triggerPad(id, pad.sampleUrl, {
@@ -72,6 +91,7 @@ export default function DJPadController() {
       });
     }
 
+    // Only auto-deactivate if NOT looping
     if (!pad.loop) {
       setTimeout(() => {
         setPads(prev => prev.map(p => 
@@ -79,16 +99,14 @@ export default function DJPadController() {
         ));
       }, 150);
     }
-  }, [pads, isInitialized]);
+  }, [pads, isInitialized, handlePadStop]);
 
-  const handlePadStop = useCallback((id: number) => {
+  const stopAllPads = useCallback(() => {
     const engine = audioEngine;
     if (engine) {
-      engine.stopPad(id);
+      engine.stopAll();
     }
-    setPads(prev => prev.map(p => 
-      p.id === id ? { ...p, isActive: false } : p
-    ));
+    setPads(prev => prev.map(p => ({ ...p, isActive: false })));
   }, []);
 
   const updatePadSettings = useCallback((id: number, updates: Partial<PadState>) => {
@@ -120,17 +138,29 @@ export default function DJPadController() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 bg-card/50 p-2 md:p-3 rounded-2xl border border-border shadow-inner w-full md:w-auto md:min-w-[300px]">
-          <Volume2 className="text-muted-foreground shrink-0" size={18} />
-          <div className="flex-1 px-1">
-            <Slider 
-              value={[masterVolume * 100]} 
-              max={100} 
-              step={1} 
-              onValueChange={([val]) => setMasterVolume(val / 100)}
-            />
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-4 bg-card/50 p-2 md:p-3 rounded-2xl border border-border shadow-inner w-full md:min-w-[300px]">
+            <Volume2 className="text-muted-foreground shrink-0" size={18} />
+            <div className="flex-1 px-1">
+              <Slider 
+                value={[masterVolume * 100]} 
+                max={100} 
+                step={1} 
+                onValueChange={([val]) => setMasterVolume(val / 100)}
+              />
+            </div>
+            <span className="text-xs font-mono text-muted-foreground w-8 text-right">{Math.round(masterVolume * 100)}%</span>
           </div>
-          <span className="text-xs font-mono text-muted-foreground w-8">{Math.round(masterVolume * 100)}%</span>
+          
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={stopAllPads}
+            className="w-full sm:w-auto flex items-center gap-2 rounded-xl h-10 md:h-12 px-6"
+          >
+            <Square size={16} fill="currentColor" />
+            Stop All
+          </Button>
         </div>
       </header>
 
@@ -155,12 +185,13 @@ export default function DJPadController() {
           <ControlPanel 
             pad={selectedPad} 
             onUpdate={(updates) => selectedPadId !== null && updatePadSettings(selectedPadId, updates)}
+            onStop={() => selectedPadId !== null && handlePadStop(selectedPadId)}
           />
         </aside>
       </main>
 
       <footer className="hidden sm:block text-center text-[10px] text-muted-foreground pt-2 opacity-50">
-        <p>Pro Engine • Low Latency • Custom Samples 1-4</p>
+        <p>Pro Engine • Low Latency • Global Stop • Pad Toggles</p>
       </footer>
     </div>
   );

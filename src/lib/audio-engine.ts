@@ -86,6 +86,19 @@ export class AudioEngine {
       } catch (e) {}
       this.activeSources.delete(id);
     }
+    this.filterNodes.delete(id);
+    this.padGains.delete(id);
+  }
+
+  stopAll() {
+    this.activeSources.forEach((source, id) => {
+      try {
+        source.stop();
+      } catch (e) {}
+    });
+    this.activeSources.clear();
+    this.filterNodes.clear();
+    this.padGains.clear();
   }
 
   updatePadSettings(id: number, settings: { pitch: number; bass: number; loop: boolean; volume: number }) {
