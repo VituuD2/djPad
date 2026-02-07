@@ -1,0 +1,10 @@
+{
+  "placeholderImages": [
+    {
+      "id": "app-icon",
+      "description": "DJ Mixer icon",
+      "imageUrl": "https://picsum.photos/seed/music/200/200",
+      "imageHint": "music controller"
+    }
+  ]
+}
