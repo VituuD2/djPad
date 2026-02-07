@@ -39,16 +39,18 @@ export default function DJPadController() {
   const selectedPad = selectedPadId !== null ? pads[selectedPadId] : null;
 
   useEffect(() => {
-    if (audioEngine) {
+    const engine = audioEngine;
+    if (engine) {
       pads.forEach(pad => {
-        audioEngine.loadSample(pad.id, pad.sampleUrl);
+        engine.loadSample(pad.id, pad.sampleUrl);
       });
     }
   }, []);
 
   useEffect(() => {
-    if (audioEngine) {
-      audioEngine.setMasterVolume(masterVolume);
+    const engine = audioEngine;
+    if (engine) {
+      engine.setMasterVolume(masterVolume);
     }
   }, [masterVolume]);
 
@@ -60,12 +62,15 @@ export default function DJPadController() {
     ));
 
     const pad = pads[id];
-    audioEngine?.triggerPad(id, pad.sampleUrl, {
-      pitch: pad.pitch,
-      bass: pad.bass,
-      loop: pad.loop,
-      volume: pad.volume,
-    });
+    const engine = audioEngine;
+    if (engine) {
+      engine.triggerPad(id, pad.sampleUrl, {
+        pitch: pad.pitch,
+        bass: pad.bass,
+        loop: pad.loop,
+        volume: pad.volume,
+      });
+    }
 
     if (!pad.loop) {
       setTimeout(() => {
@@ -77,7 +82,10 @@ export default function DJPadController() {
   }, [pads, isInitialized]);
 
   const handlePadStop = useCallback((id: number) => {
-    audioEngine?.stopPad(id);
+    const engine = audioEngine;
+    if (engine) {
+      engine.stopPad(id);
+    }
     setPads(prev => prev.map(p => 
       p.id === id ? { ...p, isActive: false } : p
     ));
@@ -87,19 +95,21 @@ export default function DJPadController() {
     setPads(prev => {
       const newPads = prev.map(p => p.id === id ? { ...p, ...updates } : p);
       const updatedPad = newPads[id];
-      audioEngine?.updatePadSettings(id, {
-        pitch: updatedPad.pitch,
-        bass: updatedPad.bass,
-        loop: updatedPad.loop,
-        volume: updatedPad.volume,
-      });
+      const engine = audioEngine;
+      if (engine) {
+        engine.updatePadSettings(id, {
+          pitch: updatedPad.pitch,
+          bass: updatedPad.bass,
+          loop: updatedPad.loop,
+          volume: updatedPad.volume,
+        });
+      }
       return newPads;
     });
   }, []);
 
   return (
     <div className="flex flex-col min-h-screen p-3 sm:p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
-      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 md:pb-6">
         <div className="flex items-center gap-3">
           <div className="bg-primary p-2 rounded-xl shrink-0">
@@ -124,9 +134,7 @@ export default function DJPadController() {
         </div>
       </header>
 
-      {/* Main Layout */}
       <main className="flex flex-col lg:grid lg:grid-cols-12 gap-6 md:gap-8 flex-1">
-        {/* Grid Area */}
         <section className="lg:col-span-7 xl:col-span-8 flex flex-col items-center justify-start lg:justify-center min-h-[400px]">
           <PadGrid 
             pads={pads} 
@@ -143,7 +151,6 @@ export default function DJPadController() {
           )}
         </section>
 
-        {/* Control Panel Area */}
         <aside className="lg:col-span-5 xl:col-span-4 h-full pb-8">
           <ControlPanel 
             pad={selectedPad} 
@@ -152,7 +159,6 @@ export default function DJPadController() {
         </aside>
       </main>
 
-      {/* Footer Instructions */}
       <footer className="hidden sm:block text-center text-[10px] text-muted-foreground pt-2 opacity-50">
         <p>Pro Engine • Low Latency • Custom Samples 1-4</p>
       </footer>
