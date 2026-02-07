@@ -1,1 +1,1 @@
-git add . && git commit -m "Fix: next build output and config" && git push origin main
+git add . && git commit -m "Refactor for Vercel deployment" && git push origin main
