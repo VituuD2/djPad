@@ -5,6 +5,8 @@ export class AudioEngine {
   private activeSources: Map<number, AudioBufferSourceNode> = new Map();
   private filterNodes: Map<number, BiquadFilterNode> = new Map();
   private padGains: Map<number, GainNode> = new Map();
+  // Keep track of all playing sources to ensure Stop All is absolute
+  private allPlayingSources: Set<AudioBufferSourceNode> = new Set();
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -22,7 +24,7 @@ export class AudioEngine {
       const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
       this.buffers.set(url, audioBuffer);
     } catch (e) {
-      console.error(`Failed to load sample: ${url}`, e);
+      // Error is handled silently, sample won't play
     }
   }
 
@@ -45,7 +47,7 @@ export class AudioEngine {
     const buffer = this.buffers.get(url);
     if (!buffer) return;
 
-    // Stop existing if any
+    // Stop existing source for this specific pad to allow retriggering
     this.stopPad(id);
 
     const source = this.context.createBufferSource();
@@ -67,12 +69,16 @@ export class AudioEngine {
 
     source.start(0);
 
+    // Track the source
     this.activeSources.set(id, source);
     this.filterNodes.set(id, filter);
     this.padGains.set(id, padGain);
+    this.allPlayingSources.add(source);
 
     source.onended = () => {
-      if (!source.loop) {
+      this.allPlayingSources.delete(source);
+      // Only remove from activeSources if this is STILL the active source for this ID
+      if (this.activeSources.get(id) === source) {
         this.activeSources.delete(id);
       }
     };
@@ -83,19 +89,27 @@ export class AudioEngine {
     if (source) {
       try {
         source.stop();
-      } catch (e) {}
+      } catch (e) {
+        // Source might already be stopped
+      }
       this.activeSources.delete(id);
+      this.allPlayingSources.delete(source);
     }
     this.filterNodes.delete(id);
     this.padGains.delete(id);
   }
 
   stopAll() {
-    this.activeSources.forEach((source, id) => {
+    // Iterate over all tracked sources to ensure NOTHING is left playing
+    this.allPlayingSources.forEach((source) => {
       try {
         source.stop();
-      } catch (e) {}
+      } catch (e) {
+        // Source might already be stopped
+      }
     });
+    
+    this.allPlayingSources.clear();
     this.activeSources.clear();
     this.filterNodes.clear();
     this.padGains.clear();
