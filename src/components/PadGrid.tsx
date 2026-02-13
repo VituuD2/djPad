@@ -26,13 +26,11 @@ export const PadGrid: React.FC<PadGridProps> = ({
         <button
           key={pad.id}
           onMouseDown={(e) => {
-            // Prevent interference between mouse and touch
             if ('ontouchstart' in window) return;
             onPadSelect(pad.id);
             onPadPress(pad.id);
           }}
           onTouchStart={(e) => {
-            // Crucial: preventDefault stops the "long-press" menu and zoom delay
             e.preventDefault();
             onPadSelect(pad.id);
             onPadPress(pad.id);
@@ -52,6 +50,13 @@ export const PadGrid: React.FC<PadGridProps> = ({
           <span className="text-[10px] sm:text-xs md:text-sm font-bold opacity-80 pointer-events-none truncate px-1 max-w-full">
             {pad.label}
           </span>
+
+          {/* Desktop Shortcut Indicator */}
+          {pad.shortcut && (
+            <span className="hidden md:block absolute bottom-1 right-1.5 text-[9px] font-mono font-bold opacity-30 uppercase pointer-events-none">
+              {pad.shortcut}
+            </span>
+          )}
           
           {pad.loop && (
             <div className={cn(

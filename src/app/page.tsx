@@ -17,11 +17,19 @@ const SOUND_MAPPING = [
   { label: 'seeMeFall', url: '/sounds/seeMeFall.mp3' }
 ];
 
+const KEY_SHORTCUTS = [
+  "1", "2", "3", "4", "5",
+  "q", "w", "e", "r", "t",
+  "a", "s", "d", "f", "g",
+  "z", "x", "c", "v", "b"
+];
+
 const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => {
   const customSound = SOUND_MAPPING[i];
   return {
     id: i,
     label: customSound ? customSound.label : `${i + 1}`,
+    shortcut: KEY_SHORTCUTS[i],
     color: customSound ? '#9C27B0' : DEFAULT_PAD_COLOR,
     pitch: 1.0,
     bass: 0,
@@ -69,37 +77,67 @@ export default function DJPadController() {
   const handlePadPress = useCallback((id: number) => {
     if (!isInitialized) setIsInitialized(true);
     
-    const pad = pads[id];
-    
-    // Toggle logic: If already active, stop it
-    if (pad.isActive) {
-      handlePadStop(id);
-      return;
-    }
+    // Safety check for ID
+    if (id < 0 || id >= INITIAL_PADS.length) return;
 
-    setPads(prev => prev.map(p => 
-      p.id === id ? { ...p, isActive: true } : p
-    ));
+    setPads(prev => {
+      const pad = prev[id];
+      
+      // Toggle logic: If already active, stop it
+      if (pad.isActive) {
+        const engine = audioEngine;
+        if (engine) engine.stopPad(id);
+        return prev.map(p => p.id === id ? { ...p, isActive: false } : p);
+      }
 
-    const engine = audioEngine;
-    if (engine) {
-      engine.triggerPad(id, pad.sampleUrl, {
-        pitch: pad.pitch,
-        bass: pad.bass,
-        loop: pad.loop,
-        volume: pad.volume,
-      });
-    }
+      const engine = audioEngine;
+      if (engine) {
+        engine.triggerPad(id, pad.sampleUrl, {
+          pitch: pad.pitch,
+          bass: pad.bass,
+          loop: pad.loop,
+          volume: pad.volume,
+        });
+      }
 
-    // Only auto-deactivate if NOT looping
-    if (!pad.loop) {
-      setTimeout(() => {
-        setPads(prev => prev.map(p => 
-          p.id === id ? { ...p, isActive: false } : p
-        ));
-      }, 150);
-    }
-  }, [pads, isInitialized, handlePadStop]);
+      const nextPads = prev.map(p => p.id === id ? { ...p, isActive: true } : p);
+
+      // Only auto-deactivate if NOT looping
+      if (!pad.loop) {
+        setTimeout(() => {
+          setPads(current => current.map(p => 
+            p.id === id ? { ...p, isActive: false } : p
+          ));
+        }, 150);
+      }
+
+      return nextPads;
+    });
+  }, [isInitialized]);
+
+  // Keyboard Shortcuts Handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.repeat) return; // Prevent spamming while holding key
+
+      const key = e.key.toLowerCase();
+      const padIndex = pads.findIndex(p => p.shortcut === key);
+      
+      if (padIndex !== -1) {
+        e.preventDefault();
+        setSelectedPadId(padIndex);
+        handlePadPress(padIndex);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pads, handlePadPress]);
 
   const stopAllPads = useCallback(() => {
     const engine = audioEngine;
@@ -176,7 +214,7 @@ export default function DJPadController() {
           {!isInitialized && (
             <div className="mt-6 flex items-center gap-2 text-accent animate-pulse">
               <Power size={16} />
-              <p className="text-xs md:text-sm font-medium">Touch any pad to start engine</p>
+              <p className="text-xs md:text-sm font-medium">Touch any pad or press keys (1-5, Q-T...) to start</p>
             </div>
           )}
         </section>
@@ -191,7 +229,7 @@ export default function DJPadController() {
       </main>
 
       <footer className="hidden sm:block text-center text-[10px] text-muted-foreground pt-2 opacity-50">
-        <p>Pro Engine • Low Latency • Global Stop • Pad Toggles</p>
+        <p>Pro Engine • Low Latency • Global Stop • Keyboard Shortcuts Enabled</p>
       </footer>
     </div>
   );

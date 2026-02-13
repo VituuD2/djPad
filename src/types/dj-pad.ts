@@ -1,6 +1,7 @@
 export interface PadState {
   id: number;
   label: string;
+  shortcut?: string;
   color: string;
   pitch: number; // 0.5 to 2.0
   bass: number; // -20 to 20 dB
