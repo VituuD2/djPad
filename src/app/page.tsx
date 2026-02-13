@@ -115,6 +115,14 @@ export default function DJPadController() {
     });
   }, [isInitialized]);
 
+  const stopAllPads = useCallback(() => {
+    const engine = audioEngine;
+    if (engine) {
+      engine.stopAll();
+    }
+    setPads(prev => prev.map(p => ({ ...p, isActive: false })));
+  }, []);
+
   // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -126,6 +134,14 @@ export default function DJPadController() {
       if (e.repeat) return; // Prevent spamming while holding key
 
       const key = e.key.toLowerCase();
+
+      // Global Stop Shortcut: '
+      if (e.key === "'") {
+        e.preventDefault();
+        stopAllPads();
+        return;
+      }
+
       const padIndex = pads.findIndex(p => p.shortcut === key);
       
       if (padIndex !== -1) {
@@ -137,15 +153,7 @@ export default function DJPadController() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pads, handlePadPress]);
-
-  const stopAllPads = useCallback(() => {
-    const engine = audioEngine;
-    if (engine) {
-      engine.stopAll();
-    }
-    setPads(prev => prev.map(p => ({ ...p, isActive: false })));
-  }, []);
+  }, [pads, handlePadPress, stopAllPads]);
 
   const updatePadSettings = useCallback((id: number, updates: Partial<PadState>) => {
     setPads(prev => {
@@ -197,7 +205,7 @@ export default function DJPadController() {
             className="w-full sm:w-auto flex items-center gap-2 rounded-xl h-10 md:h-12 px-6"
           >
             <Square size={16} fill="currentColor" />
-            Stop All
+            Stop All ( ' )
           </Button>
         </div>
       </header>
@@ -229,7 +237,7 @@ export default function DJPadController() {
       </main>
 
       <footer className="hidden sm:block text-center text-[10px] text-muted-foreground pt-2 opacity-50">
-        <p>Pro Engine • Low Latency • Global Stop • Keyboard Shortcuts Enabled</p>
+        <p>Pro Engine • Low Latency • Global Stop (Press ') • Keyboard Shortcuts Enabled</p>
       </footer>
     </div>
   );
