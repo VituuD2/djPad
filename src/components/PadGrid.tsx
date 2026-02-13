@@ -25,17 +25,20 @@ export const PadGrid: React.FC<PadGridProps> = ({
       {pads.map((pad) => (
         <button
           key={pad.id}
-          onMouseDown={() => {
+          onMouseDown={(e) => {
+            // Prevent interference between mouse and touch
+            if ('ontouchstart' in window) return;
             onPadSelect(pad.id);
             onPadPress(pad.id);
           }}
           onTouchStart={(e) => {
+            // Crucial: preventDefault stops the "long-press" menu and zoom delay
             e.preventDefault();
             onPadSelect(pad.id);
             onPadPress(pad.id);
           }}
           className={cn(
-            "relative flex flex-col items-center justify-center rounded-lg sm:rounded-xl transition-all duration-75 select-none touch-none",
+            "dj-pad relative flex flex-col items-center justify-center rounded-lg sm:rounded-xl transition-all duration-75 select-none touch-none",
             "border-b-2 sm:border-b-4 active:translate-y-[2px] active:border-b-0",
             pad.isActive ? "pad-active scale-[0.98]" : "hover:brightness-110",
             selectedPadId === pad.id ? "ring-2 ring-accent ring-offset-2 ring-offset-background z-10" : "shadow-md sm:shadow-lg"
