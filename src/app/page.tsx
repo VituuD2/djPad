@@ -13,8 +13,7 @@ const SOUND_MAPPING = [
   { label: 'Cepagaria', url: '/sounds/cepagaria.mp3' },
   { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
   { label: 'Fahh', url: '/sounds/fahh.mp3' },
-  { label: 'Tailung', url: '/sounds/tailung.mp3' },
-  { label: 'seeMeFall', url: '/sounds/seeMeFall.mp3' }
+  { label: 'Tailung', url: '/sounds/tailung.mp3' }
 ];
 
 const KEY_SHORTCUTS = [
@@ -29,7 +28,7 @@ const INITIAL_PADS: PadState[] = Array.from({ length: 25 }, (_, i) => {
   return {
     id: i,
     label: customSound ? customSound.label : `${i + 1}`,
-    shortcut: KEY_SHORTCUTS[i],
+    shortcut: KEY_SHORTCUTS[i] || "",
     color: customSound ? '#9C27B0' : DEFAULT_PAD_COLOR,
     pitch: 1.0,
     bass: 0,
@@ -75,34 +74,33 @@ export default function DJPadController() {
   }, []);
 
   const handlePadPress = useCallback((id: number) => {
-    if (!isInitialized) setIsInitialized(true);
+    const engine = audioEngine;
+    if (!engine) return;
+
+    if (!isInitialized) {
+      engine.unlock();
+      setIsInitialized(true);
+    }
     
-    // Safety check for ID
-    if (id < 0 || id >= INITIAL_PADS.length) return;
+    if (id < 0 || id >= pads.length) return;
 
     setPads(prev => {
       const pad = prev[id];
       
-      // Toggle logic: If already active, stop it
       if (pad.isActive) {
-        const engine = audioEngine;
-        if (engine) engine.stopPad(id);
+        engine.stopPad(id);
         return prev.map(p => p.id === id ? { ...p, isActive: false } : p);
       }
 
-      const engine = audioEngine;
-      if (engine) {
-        engine.triggerPad(id, pad.sampleUrl, {
-          pitch: pad.pitch,
-          bass: pad.bass,
-          loop: pad.loop,
-          volume: pad.volume,
-        });
-      }
+      engine.triggerPad(id, pad.sampleUrl, {
+        pitch: pad.pitch,
+        bass: pad.bass,
+        loop: pad.loop,
+        volume: pad.volume,
+      });
 
       const nextPads = prev.map(p => p.id === id ? { ...p, isActive: true } : p);
 
-      // Only auto-deactivate if NOT looping
       if (!pad.loop) {
         setTimeout(() => {
           setPads(current => current.map(p => 
@@ -113,7 +111,7 @@ export default function DJPadController() {
 
       return nextPads;
     });
-  }, [isInitialized]);
+  }, [isInitialized, pads]);
 
   const stopAllPads = useCallback(() => {
     const engine = audioEngine;
@@ -123,19 +121,15 @@ export default function DJPadController() {
     setPads(prev => prev.map(p => ({ ...p, isActive: false })));
   }, []);
 
-  // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
-      if (e.repeat) return; // Prevent spamming while holding key
-
+      if (e.repeat) return;
       const key = e.key.toLowerCase();
 
-      // Global Stop Shortcut: '
       if (e.key === "'") {
         e.preventDefault();
         stopAllPads();
@@ -143,7 +137,6 @@ export default function DJPadController() {
       }
 
       const padIndex = pads.findIndex(p => p.shortcut === key);
-      
       if (padIndex !== -1) {
         e.preventDefault();
         setSelectedPadId(padIndex);
@@ -222,7 +215,7 @@ export default function DJPadController() {
           {!isInitialized && (
             <div className="mt-6 flex items-center gap-2 text-accent animate-pulse">
               <Power size={16} />
-              <p className="text-xs md:text-sm font-medium">Touch any pad or press keys (1-5, Q-T...) to start</p>
+              <p className="text-xs md:text-sm font-medium text-center">Touch any pad to activate audio engine</p>
             </div>
           )}
         </section>
