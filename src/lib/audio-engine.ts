@@ -2,16 +2,15 @@ export class AudioEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private buffers: Map<string, AudioBuffer> = new Map();
-  private activeSources: Map<number, AudioBufferSourceNode> = new Map();
+  private activeSources: Map<number, Set<AudioBufferSourceNode>> = new Map();
   private filterNodes: Map<number, BiquadFilterNode> = new Map();
   private padGains: Map<number, GainNode> = new Map();
-  private allPlayingSources: Set<AudioBufferSourceNode> = new Set();
   private unlocked: boolean = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
       try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext);
         if (AudioCtx) {
           this.context = new AudioCtx();
           this.masterGain = this.context.createGain();
@@ -43,28 +42,37 @@ export class AudioEngine {
   }
 
   /**
-   * Specifically for iOS Safari to unlock the AudioContext
+   * Aggressive unlock for iOS Safari
    */
-  async unlock() {
-    if (this.unlocked || !this.context) return;
+  async unlock(): Promise<boolean> {
+    if (!this.context) return false;
+    
+    if (this.context.state === 'suspended') {
+      try {
+        await this.context.resume();
+      } catch (e) {
+        console.error('Failed to resume context:', e);
+      }
+    }
 
-    // Create a silent buffer and play it to unlock the hardware
+    // Play a silent buffer to kick the hardware into gear
     const buffer = this.context.createBuffer(1, 1, 22050);
     const source = this.context.createBufferSource();
     source.buffer = buffer;
     source.connect(this.context.destination);
     source.start(0);
-
-    if (this.context.state === 'suspended') {
-      await this.context.resume();
-    }
     
-    this.unlocked = true;
+    this.unlocked = this.context.state === 'running';
+    return this.unlocked;
   }
 
   private async resume() {
-    if (this.context && this.context.state === 'suspended') {
-      await this.context.resume();
+    if (this.context && this.context.state !== 'running') {
+      try {
+        await this.context.resume();
+      } catch (e) {
+        console.error('Resume failed:', e);
+      }
     }
   }
 
@@ -72,21 +80,15 @@ export class AudioEngine {
     await this.resume();
     if (!this.context || !this.masterGain) return;
 
-    const buffer = this.buffers.get(url);
+    let buffer = this.buffers.get(url);
     if (!buffer) {
-      // Fallback: try loading if missing, though it should be preloaded
       await this.loadSample(id, url);
-      const reBuffer = this.buffers.get(url);
-      if (!reBuffer) return;
+      buffer = this.buffers.get(url);
+      if (!buffer) return;
     }
 
-    const playBuffer = this.buffers.get(url)!;
-
-    // Stop existing source for this specific pad to allow retriggering
-    this.stopPad(id);
-
     const source = this.context.createBufferSource();
-    source.buffer = playBuffer;
+    source.buffer = buffer;
     source.playbackRate.value = settings.pitch;
     source.loop = settings.loop;
 
@@ -104,41 +106,44 @@ export class AudioEngine {
 
     source.start(0);
 
-    // Track the source
-    this.activeSources.set(id, source);
+    // Track multiple sources for the same pad to allow layering/rapid trigger
+    if (!this.activeSources.has(id)) {
+      this.activeSources.set(id, new Set());
+    }
+    this.activeSources.get(id)!.add(source);
+    
     this.filterNodes.set(id, filter);
     this.padGains.set(id, padGain);
-    this.allPlayingSources.add(source);
 
     source.onended = () => {
-      this.allPlayingSources.delete(source);
-      if (this.activeSources.get(id) === source) {
-        this.activeSources.delete(id);
+      const set = this.activeSources.get(id);
+      if (set) {
+        set.delete(source);
+        if (set.size === 0) {
+          this.activeSources.delete(id);
+        }
       }
     };
   }
 
   stopPad(id: number) {
-    const source = this.activeSources.get(id);
-    if (source) {
-      try {
-        source.stop();
-      } catch (e) {}
+    const sources = this.activeSources.get(id);
+    if (sources) {
+      sources.forEach(s => {
+        try { s.stop(); } catch (e) {}
+      });
       this.activeSources.delete(id);
-      this.allPlayingSources.delete(source);
     }
     this.filterNodes.delete(id);
     this.padGains.delete(id);
   }
 
   stopAll() {
-    this.allPlayingSources.forEach((source) => {
-      try {
-        source.stop();
-      } catch (e) {}
+    this.activeSources.forEach((sources) => {
+      sources.forEach(s => {
+        try { s.stop(); } catch (e) {}
+      });
     });
-    
-    this.allPlayingSources.clear();
     this.activeSources.clear();
     this.filterNodes.clear();
     this.padGains.clear();
@@ -146,20 +151,26 @@ export class AudioEngine {
 
   updatePadSettings(id: number, settings: { pitch: number; bass: number; loop: boolean; volume: number }) {
     if (!this.context) return;
-    const source = this.activeSources.get(id);
+    const sources = this.activeSources.get(id);
     const filter = this.filterNodes.get(id);
     const gain = this.padGains.get(id);
 
-    if (source) {
-      source.playbackRate.setTargetAtTime(settings.pitch, this.context.currentTime, 0.05);
-      source.loop = settings.loop;
+    if (sources) {
+      sources.forEach(source => {
+        source.playbackRate.setTargetAtTime(settings.pitch, this.context.currentTime!, 0.05);
+        source.loop = settings.loop;
+      });
     }
     if (filter) {
-      filter.gain.setTargetAtTime(settings.bass, this.context.currentTime, 0.05);
+      filter.gain.setTargetAtTime(settings.bass, this.context.currentTime!, 0.05);
     }
     if (gain) {
-       gain.gain.setTargetAtTime(settings.volume, this.context.currentTime, 0.05);
+       gain.gain.setTargetAtTime(settings.volume, this.context.currentTime!, 0.05);
     }
+  }
+
+  isReady() {
+    return this.context?.state === 'running';
   }
 }
 

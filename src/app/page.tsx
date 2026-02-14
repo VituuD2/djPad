@@ -13,8 +13,7 @@ const SOUND_MAPPING = [
   { label: 'Cepagaria', url: '/sounds/cepagaria.mp3' },
   { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
   { label: 'Fahh', url: '/sounds/fahh.mp3' },
-  { label: 'Tailung', url: '/sounds/tailung.mp3' },
-  { label: 'seeMeFall', url: '/sounds/seeMeFall.mp3' }
+  { label: 'Tailung', url: '/sounds/tailung.mp3' }
 ];
 
 const KEY_SHORTCUTS = [
@@ -74,13 +73,16 @@ export default function DJPadController() {
     ));
   }, []);
 
-  const handlePadPress = useCallback((id: number) => {
+  const handlePadPress = useCallback(async (id: number) => {
     const engine = audioEngine;
     if (!engine) return;
 
     if (!isInitialized) {
-      engine.unlock();
-      setIsInitialized(true);
+      // Very important for iOS: we must await the unlock inside the user interaction call stack
+      const success = await engine.unlock();
+      if (success) {
+        setIsInitialized(true);
+      }
     }
     
     if (id < 0 || id >= pads.length) return;
