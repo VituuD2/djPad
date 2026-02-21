@@ -14,7 +14,8 @@ const SOUND_MAPPING = [
   { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
   { label: 'Fahh', url: '/sounds/fahh.mp3' },
   { label: 'Tailung', url: '/sounds/tailung.mp3' },
-  { label: 'airhorn', url: '/sounds/airhorn.mp3'}
+  { label: 'Airhorn', url: '/sounds/airhorn.mp3'},
+  { label: 'Scratch', url: '/sounds/scratch.mp3'}
 ];
 
 const KEY_SHORTCUTS = [
