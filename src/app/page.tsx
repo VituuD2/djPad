@@ -13,7 +13,8 @@ const SOUND_MAPPING = [
   { label: 'Cepagaria', url: '/sounds/cepagaria.mp3' },
   { label: 'Ceprefere', url: '/sounds/ceprefere.mp3' },
   { label: 'Fahh', url: '/sounds/fahh.mp3' },
-  { label: 'Tailung', url: '/sounds/tailung.mp3' }
+  { label: 'Tailung', url: '/sounds/tailung.mp3' },
+  { label: 'airhorn', url: '/sounds/airhorn.mp3'}
 ];
 
 const KEY_SHORTCUTS = [
