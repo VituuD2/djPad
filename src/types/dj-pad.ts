@@ -9,6 +9,10 @@ export interface PadState {
   volume: number; // 0 to 1
   sampleUrl: string;
   isActive: boolean;
+  status: 'empty' | 'idle' | 'loading' | 'ready' | 'error';
+  custom?: boolean;
 }
 
 export const DEFAULT_PAD_COLOR = '#673AB7'; // Deep Purple
+
+export type PadSettings = Pick<PadState, 'pitch' | 'bass' | 'loop' | 'volume'>;

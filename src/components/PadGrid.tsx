@@ -1,77 +1,44 @@
-"use client";
+'use client';
 
-import React from 'react';
-import { PadState } from '@/types/dj-pad';
+import { AlertCircle, AudioLines, Loader2, Plus, Repeat } from 'lucide-react';
+import type { PadState } from '@/types/dj-pad';
 import { cn } from '@/lib/utils';
-import { Repeat } from 'lucide-react';
 
 interface PadGridProps {
   pads: PadState[];
-  selectedPadId: number | null;
+  selectedPadId: number;
   onPadPress: (id: number) => void;
-  onPadStop: (id: number) => void;
   onPadSelect: (id: number) => void;
+  disabled: boolean;
+  editMode: boolean;
 }
 
-export const PadGrid: React.FC<PadGridProps> = ({ 
-  pads, 
-  selectedPadId, 
-  onPadPress, 
-  onPadStop, 
-  onPadSelect 
-}) => {
+export function PadGrid({ pads, selectedPadId, onPadPress, onPadSelect, disabled, editMode }: PadGridProps) {
   return (
-    <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4 w-full max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl aspect-square">
-      {pads.map((pad) => (
-        <button
-          key={pad.id}
-          onMouseDown={(e) => {
-            if ('ontouchstart' in window) return;
-            onPadSelect(pad.id);
-            onPadPress(pad.id);
-          }}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            onPadSelect(pad.id);
-            onPadPress(pad.id);
-          }}
-          className={cn(
-            "dj-pad relative flex flex-col items-center justify-center rounded-lg sm:rounded-xl transition-all duration-75 select-none touch-none",
-            "border-b-2 sm:border-b-4 active:translate-y-[2px] active:border-b-0",
-            pad.isActive ? "pad-active scale-[0.98]" : "hover:brightness-110",
-            selectedPadId === pad.id ? "ring-2 ring-accent ring-offset-2 ring-offset-background z-10" : "shadow-md sm:shadow-lg"
-          )}
-          style={{ 
-            backgroundColor: pad.color,
-            borderColor: `color-mix(in srgb, ${pad.color}, black 30%)`,
-            color: 'white',
-          }}
-        >
-          <span className="text-[10px] sm:text-xs md:text-sm font-bold opacity-80 pointer-events-none truncate px-1 max-w-full">
-            {pad.label}
-          </span>
-
-          {/* Desktop Shortcut Indicator */}
-          {pad.shortcut && (
-            <span className="hidden md:block absolute bottom-1 right-1.5 text-[9px] font-mono font-bold opacity-30 uppercase pointer-events-none">
-              {pad.shortcut}
-            </span>
-          )}
-          
-          {pad.loop && (
-            <div className={cn(
-              "absolute top-1 right-1 sm:top-2 sm:right-2 transition-opacity pointer-events-none",
-              pad.isActive ? "opacity-100" : "opacity-40"
-            )}>
-              <Repeat size={10} className={cn("sm:w-3 sm:h-3", pad.isActive ? "loop-indicator" : "")} />
-            </div>
-          )}
-
-          {pad.isActive && (
-            <div className="absolute inset-0 bg-white/20 rounded-lg sm:rounded-xl animate-pulse pointer-events-none" />
-          )}
+    <div className="mx-auto grid w-full max-w-[620px] grid-cols-5 gap-2 sm:gap-3" aria-label="Mesa de 25 pads">
+      {pads.map(pad => (
+        <button type="button" key={pad.id} disabled={disabled}
+          onClick={() => { onPadSelect(pad.id); if (!editMode && pad.sampleUrl) onPadPress(pad.id); }}
+          aria-label={pad.sampleUrl ? `${pad.label}, pad ${pad.id + 1}, tecla ${pad.shortcut}${pad.isActive ? ', tocando' : ''}` : `Pad ${pad.id + 1} vazio. Importar som. Tecla ${pad.shortcut}`}
+          aria-pressed={selectedPadId === pad.id} aria-keyshortcuts={pad.shortcut}
+          data-active={pad.isActive} data-pad-id={pad.id}
+          className={cn('dj-pad group relative flex aspect-square min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border p-1.5 transition duration-100 sm:gap-3 sm:p-3',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-wait disabled:opacity-40',
+            pad.sampleUrl ? 'border-white/10 shadow-[inset_0_1px_0_0_#ffffff12] hover:brightness-125 active:scale-95' : 'border-dashed border-white/10 bg-background/30 text-muted-foreground hover:border-accent/50 hover:bg-accent/5 hover:text-accent',
+            selectedPadId === pad.id && 'ring-2 ring-accent ring-offset-2 ring-offset-card',
+            pad.isActive && 'pad-active')}
+          style={pad.sampleUrl ? { backgroundColor: pad.color } : undefined}>
+          <span className="absolute left-2 top-1.5 hidden text-[9px] font-medium tabular-nums text-white/45 sm:block">{String(pad.id + 1).padStart(2, '0')}</span>
+          <span className="absolute right-1.5 top-1.5 hidden rounded bg-black/20 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/70 sm:block">{pad.shortcut}</span>
+          {pad.status === 'loading' ? <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+            : pad.status === 'error' ? <AlertCircle size={18} className="text-amber-200" aria-hidden="true" />
+            : pad.sampleUrl ? <AudioLines size={22} className={cn('hidden sm:block', pad.isActive ? 'text-accent' : 'text-white/60')} aria-hidden="true" />
+            : <Plus size={19} className="opacity-40 transition-opacity group-hover:opacity-100" aria-hidden="true" />}
+          <span className={cn('line-clamp-2 w-full break-words text-center text-[9px] font-medium leading-tight sm:text-[11px] xl:text-xs', pad.sampleUrl && 'text-white')}>{pad.sampleUrl ? pad.label : <><span className="sm:hidden">{pad.id + 1}</span><span className="hidden sm:inline">Adicionar som</span></>}</span>
+          {pad.loop && <Repeat size={11} className={cn('absolute bottom-1.5 right-1.5', pad.isActive ? 'text-accent' : 'text-white/60')} aria-label="Loop ativado" />}
+          {pad.isActive && <span className="absolute bottom-2 left-2 h-1 w-1 rounded-full bg-accent" />}
         </button>
       ))}
     </div>
   );
-};
+}

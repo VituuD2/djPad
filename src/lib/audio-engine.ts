@@ -1,177 +1,163 @@
+import type { PadSettings, PadState } from '../types/dj-pad';
+
+type Voice = { source: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode };
+type PadEvent = { id: number; isActive?: boolean; status?: PadState['status'] };
+
+/** One voice per pad. Different pads can play together; repeated hits restart a sound. */
 export class AudioEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private buffers: Map<string, AudioBuffer> = new Map();
-  private activeSources: Map<number, Set<AudioBufferSourceNode>> = new Map();
-  private filterNodes: Map<number, BiquadFilterNode> = new Map();
-  private padGains: Map<number, GainNode> = new Map();
-  private unlocked: boolean = false;
+  private buffers = new Map<string, AudioBuffer>();
+  private loading = new Map<string, Promise<AudioBuffer>>();
+  private voices = new Map<number, Voice>();
+  private requests = new Map<number, number>();
+  private settings = new Map<number, PadSettings>();
+  private listeners = new Set<(event: PadEvent) => void>();
+  private masterVolume = 0.7;
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      try {
-        const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext);
-        if (AudioCtx) {
-          this.context = new AudioCtx();
-          this.masterGain = this.context.createGain();
-          this.masterGain.connect(this.context.destination);
-        }
-      } catch (e) {
-        console.error('AudioContext not supported', e);
-      }
-    }
+  subscribe(listener: (event: PadEvent) => void) {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
   }
 
-  async loadSample(id: number, url: string) {
-    if (!this.context) return;
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
-      this.buffers.set(url, audioBuffer);
-    } catch (e) {
-      console.warn(`Failed to load sample: ${url}`, e);
-    }
+  private emit(event: PadEvent) {
+    this.listeners.forEach(listener => listener(event));
   }
+
+  private getContext() {
+    if (!this.context) {
+      const AudioCtx = window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) throw new Error('Seu navegador não oferece suporte a áudio. Tente um navegador atualizado.');
+      this.context = new AudioCtx({ latencyHint: 'interactive' });
+      this.masterGain = this.context.createGain();
+      this.masterGain.gain.value = this.masterVolume;
+      const limiter = this.context.createDynamicsCompressor();
+      limiter.threshold.value = -3;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      this.masterGain.connect(limiter);
+      limiter.connect(this.context.destination);
+    }
+    return this.context;
+  }
+
+  async unlock() {
+    const context = this.getContext();
+    // Resume inside the user gesture, before fetching or decoding audio.
+    try { if (context.state !== 'running') await context.resume(); }
+    catch { throw new Error('Não foi possível ativar o áudio. Toque novamente ou recarregue a página.'); }
+    if (context.state !== 'running') throw new Error('Toque novamente para ativar o áudio do navegador.');
+  }
+
+  async loadSample(url: string): Promise<AudioBuffer> {
+    const cached = this.buffers.get(url);
+    if (cached) return cached;
+    const pending = this.loading.get(url);
+    if (pending) return pending;
+    const context = this.getContext();
+    const task = (async () => {
+      let response: Response;
+      try { response = await fetch(url, { signal: AbortSignal.timeout(20_000) }); }
+      catch { throw new Error('Não foi possível carregar esse som. Verifique sua conexão e tente novamente.'); }
+      if (!response.ok) throw new Error('Não foi possível carregar esse som. Tente novamente.');
+      let buffer: AudioBuffer;
+      try { buffer = await context.decodeAudioData(await response.arrayBuffer()); }
+      catch { throw new Error('Esse áudio não pôde ser aberto. Tente importar um arquivo MP3 ou WAV válido.'); }
+      if (buffer.duration > 120) throw new Error('Use um áudio com até 2 minutos.');
+      this.buffers.set(url, buffer);
+      return buffer;
+    })();
+    this.loading.set(url, task);
+    try { return await task; }
+    finally { this.loading.delete(url); }
+  }
+
+  releaseSample(url: string) { this.buffers.delete(url); }
 
   setMasterVolume(value: number) {
+    this.masterVolume = Math.min(1, Math.max(0, value));
     if (this.masterGain && this.context) {
-      this.masterGain.gain.setTargetAtTime(value, this.context.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(this.masterVolume, this.context.currentTime, 0.015);
     }
   }
 
-  /**
-   * Aggressive unlock for iOS Safari
-   */
-  async unlock(): Promise<boolean> {
-    if (!this.context) return false;
-    
-    if (this.context.state === 'suspended') {
-      try {
-        await this.context.resume();
-      } catch (e) {
-        console.error('Failed to resume context:', e);
-      }
-    }
-
-    // Play a silent buffer to kick the hardware into gear
-    const buffer = this.context.createBuffer(1, 1, 22050);
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(this.context.destination);
-    source.start(0);
-    
-    this.unlocked = this.context.state === 'running';
-    return this.unlocked;
-  }
-
-  private async resume() {
-    if (this.context && this.context.state !== 'running') {
-      try {
-        await this.context.resume();
-      } catch (e) {
-        console.error('Resume failed:', e);
-      }
-    }
-  }
-
-  async triggerPad(id: number, url: string, settings: { pitch: number; bass: number; loop: boolean; volume: number }) {
-    await this.resume();
-    if (!this.context || !this.masterGain) return;
-
-    let buffer = this.buffers.get(url);
-    if (!buffer) {
-      await this.loadSample(id, url);
-      buffer = this.buffers.get(url);
-      if (!buffer) return;
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-    source.playbackRate.value = settings.pitch;
-    source.loop = settings.loop;
-
-    const filter = this.context.createBiquadFilter();
-    filter.type = 'lowshelf';
-    filter.frequency.value = 200;
-    filter.gain.value = settings.bass;
-
-    const padGain = this.context.createGain();
-    padGain.gain.value = settings.volume;
-
-    source.connect(filter);
-    filter.connect(padGain);
-    padGain.connect(this.masterGain);
-
-    source.start(0);
-
-    // Track multiple sources for the same pad to allow layering/rapid trigger
-    if (!this.activeSources.has(id)) {
-      this.activeSources.set(id, new Set());
-    }
-    this.activeSources.get(id)!.add(source);
-    
-    this.filterNodes.set(id, filter);
-    this.padGains.set(id, padGain);
-
-    source.onended = () => {
-      const set = this.activeSources.get(id);
-      if (set) {
-        set.delete(source);
-        if (set.size === 0) {
-          this.activeSources.delete(id);
+  async triggerPad(id: number, url: string, settings: PadSettings) {
+    this.stopPad(id);
+    this.settings.set(id, settings);
+    const request = this.requests.get(id)!;
+    this.emit({ id, status: 'loading' });
+    try {
+      await this.unlock();
+      const buffer = await this.loadSample(url);
+      // Cancel playback even when Stop was pressed before the download finished.
+      if (this.requests.get(id) !== request) return;
+      const context = this.getContext();
+      const currentSettings = this.settings.get(id) ?? settings;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = currentSettings.pitch;
+      source.loop = currentSettings.loop;
+      const filter = context.createBiquadFilter();
+      filter.type = 'lowshelf';
+      filter.frequency.value = 200;
+      filter.gain.value = currentSettings.bass;
+      const gain = context.createGain();
+      gain.gain.value = currentSettings.volume;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain!);
+      const voice = { source, filter, gain };
+      this.voices.set(id, voice);
+      source.onended = () => {
+        this.disconnect(voice);
+        if (this.voices.get(id) === voice) {
+          this.voices.delete(id);
+          this.emit({ id, isActive: false });
         }
-      }
-    };
+      };
+      source.start();
+      this.emit({ id, status: 'ready', isActive: true });
+    } catch (error) {
+      if (this.requests.get(id) !== request) return;
+      this.emit({ id, status: 'error', isActive: false });
+      throw error;
+    }
+  }
+
+  private disconnect({ source, filter, gain }: Voice) {
+    source.disconnect();
+    filter.disconnect();
+    gain.disconnect();
   }
 
   stopPad(id: number) {
-    const sources = this.activeSources.get(id);
-    if (sources) {
-      sources.forEach(s => {
-        try { s.stop(); } catch (e) {}
-      });
-      this.activeSources.delete(id);
+    this.requests.set(id, (this.requests.get(id) ?? 0) + 1);
+    const voice = this.voices.get(id);
+    if (voice) {
+      this.voices.delete(id);
+      voice.source.onended = null;
+      voice.source.stop();
+      this.disconnect(voice);
     }
-    this.filterNodes.delete(id);
-    this.padGains.delete(id);
+    this.emit({ id, isActive: false });
   }
 
-  stopAll() {
-    this.activeSources.forEach((sources) => {
-      sources.forEach(s => {
-        try { s.stop(); } catch (e) {}
-      });
-    });
-    this.activeSources.clear();
-    this.filterNodes.clear();
-    this.padGains.clear();
-  }
+  stopAll() { this.requests.forEach((_, id) => this.stopPad(id)); }
 
-  updatePadSettings(id: number, settings: { pitch: number; bass: number; loop: boolean; volume: number }) {
-    if (!this.context) return;
-    const sources = this.activeSources.get(id);
-    const filter = this.filterNodes.get(id);
-    const gain = this.padGains.get(id);
-
-    if (sources) {
-      sources.forEach(source => {
-        source.playbackRate.setTargetAtTime(settings.pitch, this.context.currentTime!, 0.05);
-        source.loop = settings.loop;
-      });
-    }
-    if (filter) {
-      filter.gain.setTargetAtTime(settings.bass, this.context.currentTime!, 0.05);
-    }
-    if (gain) {
-       gain.gain.setTargetAtTime(settings.volume, this.context.currentTime!, 0.05);
-    }
-  }
-
-  isReady() {
-    return this.context?.state === 'running';
+  updatePadSettings(id: number, settings: PadSettings) {
+    this.settings.set(id, settings);
+    const voice = this.voices.get(id);
+    if (!voice || !this.context) return;
+    const time = this.context.currentTime;
+    voice.source.playbackRate.setTargetAtTime(settings.pitch, time, 0.015);
+    voice.source.loop = settings.loop;
+    voice.filter.gain.setTargetAtTime(settings.bass, time, 0.015);
+    voice.gain.gain.setTargetAtTime(settings.volume, time, 0.015);
   }
 }
 
-export const audioEngine = typeof window !== 'undefined' ? new AudioEngine() : null;
+// No AudioContext is created during rendering or module evaluation.
+export const audioEngine = new AudioEngine();
